@@ -1,5 +1,5 @@
-import { HSL, HSV, Numberify, RGB } from './interfaces';
-import { bound01, pad2 } from './util';
+import { HSL, HSV, Numberify, RGB } from './interfaces.js';
+import { bound01, pad2 } from './util.js';
 
 // `rgbToHsl`, `rgbToHsv`, `hslToRgb`, `hsvToRgb` modified from:
 // <http://mjijackson.com/2008/02/rgb-to-hsl-and-rgb-to-hsv-color-model-conversion-algorithms-in-javascript>
@@ -195,8 +195,8 @@ export function hsvToRgb(
 /**
  * Converts an RGB color to hex
  *
- * Assumes r, g, and b are contained in the set [0, 255]
- * Returns a 3 or 6 character hex
+ * *Assumes:* r, g, and b are contained in the set [0, 255]
+ * *Returns:* a 3 or 6 character hex
  */
 export function rgbToHex(r: number, g: number, b: number, allow3Char: boolean): string {
   const hex = [
@@ -221,8 +221,8 @@ export function rgbToHex(r: number, g: number, b: number, allow3Char: boolean): 
 /**
  * Converts an RGBA color plus alpha transparency to hex
  *
- * Assumes r, g, b are contained in the set [0, 255] and
- * a in [0, 1]. Returns a 4 or 8 character rgba hex
+ * *Assumes:* r, g, b are contained in the set [0, 255] and a in [0, 1]
+ * *Returns:* a 4 or 8 character rgba hex
  */
 // eslint-disable-next-line max-params
 export function rgbaToHex(r: number, g: number, b: number, a: number, allow4Char: boolean): string {
@@ -250,6 +250,9 @@ export function rgbaToHex(r: number, g: number, b: number, a: number, allow4Char
 /**
  * Converts an RGBA color to an ARGB Hex8 string
  * Rarely used, but required for "toFilter()"
+ *
+ * *Assumes:* r, g, b are contained in the set [0, 255] and a in [0, 1]
+ * *Returns:* a 8 character argb hex
  */
 export function rgbaToArgbHex(r: number, g: number, b: number, a: number): string {
   const hex = [
@@ -260,6 +263,49 @@ export function rgbaToArgbHex(r: number, g: number, b: number, a: number): strin
   ];
 
   return hex.join('');
+}
+
+/**
+ * Converts CMYK to RBG
+ * Assumes c, m, y, k are in the set [0, 100]
+ */
+export function cmykToRgb(c: number, m: number, y: number, k: number) {
+  const cConv = c / 100;
+  const mConv = m / 100;
+  const yConv = y / 100;
+  const kConv = k / 100;
+
+  const r = 255 * (1 - cConv) * (1 - kConv);
+  const g = 255 * (1 - mConv) * (1 - kConv);
+  const b = 255 * (1 - yConv) * (1 - kConv);
+
+  return { r, g, b };
+}
+
+export function rgbToCmyk(r: number, g: number, b: number) {
+  let c = 1 - r / 255;
+  let m = 1 - g / 255;
+  let y = 1 - b / 255;
+  let k = Math.min(c, m, y);
+
+  if (k === 1) {
+    c = 0;
+    m = 0;
+    y = 0;
+  } else {
+    c = ((c - k) / (1 - k)) * 100;
+    m = ((m - k) / (1 - k)) * 100;
+    y = ((y - k) / (1 - k)) * 100;
+  }
+
+  k *= 100;
+
+  return {
+    c: Math.round(c),
+    m: Math.round(m),
+    y: Math.round(y),
+    k: Math.round(k),
+  };
 }
 
 /** Converts a decimal to a hex value */

@@ -1,8 +1,14 @@
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
-import { convertHexToDecimal, hslToRgb, hsvToRgb, parseIntFromHex, rgbToRgb } from './conversion';
-import { names } from './css-color-names';
-import { HSL, HSLA, HSV, HSVA, RGB, RGBA } from './interfaces';
-import { boundAlpha, convertToPercentage } from './util';
+import {
+  cmykToRgb,
+  convertHexToDecimal,
+  hslToRgb,
+  hsvToRgb,
+  parseIntFromHex,
+  rgbToRgb,
+} from './conversion.js';
+import { names } from './css-color-names.js';
+import { CMYK, HSL, HSLA, HSV, HSVA, RGB, RGBA } from './interfaces.js';
+import { boundAlpha, convertToPercentage } from './util.js';
 
 /**
  * Given a string or object, convert that input to RGB
@@ -20,9 +26,10 @@ import { boundAlpha, convertToPercentage } from './util';
  * "hsl(0, 100%, 50%)" or "hsl 0 100% 50%"
  * "hsla(0, 100%, 50%, 1)" or "hsla 0 100% 50%, 1"
  * "hsv(0, 100%, 100%)" or "hsv 0 100% 100%"
+ * "cmyk(0, 20, 0, 0)" or "cmyk 0 20 0 0"
  * ```
  */
-export function inputToRGB(color: string | RGB | RGBA | HSL | HSLA | HSV | HSVA | any): {
+export function inputToRGB(color: string | RGB | RGBA | HSL | HSLA | HSV | HSVA | CMYK | any): {
   ok: boolean;
   format: any;
   r: number;
@@ -59,6 +66,15 @@ export function inputToRGB(color: string | RGB | RGBA | HSL | HSLA | HSV | HSVA 
       rgb = hslToRgb(color.h, s as number, l as number);
       ok = true;
       format = 'hsl';
+    } else if (
+      isValidCSSUnit(color.c) &&
+      isValidCSSUnit(color.m) &&
+      isValidCSSUnit(color.y) &&
+      isValidCSSUnit(color.k)
+    ) {
+      rgb = cmykToRgb(color.c, color.m, color.y, color.k);
+      ok = true;
+      format = 'cmyk';
     }
 
     if (Object.prototype.hasOwnProperty.call(color, 'a')) {
@@ -85,13 +101,16 @@ const CSS_INTEGER = '[-\\+]?\\d+%?';
 const CSS_NUMBER = '[-\\+]?\\d*\\.\\d+%?';
 
 // Allow positive/negative integer/number.  Don't capture the either/or, just the entire outcome.
-const CSS_UNIT = `(?:${CSS_NUMBER})|(?:${CSS_INTEGER})`;
+const CSS_UNIT = '(?:' + CSS_NUMBER + ')|(?:' + CSS_INTEGER + ')';
 
 // Actual matching.
 // Parentheses and commas are optional, but not required.
 // Whitespace can take the place of commas or opening paren
-const PERMISSIVE_MATCH3 = `[\\s|\\(]+(${CSS_UNIT})[,|\\s]+(${CSS_UNIT})[,|\\s]+(${CSS_UNIT})\\s*\\)?`;
-const PERMISSIVE_MATCH4 = `[\\s|\\(]+(${CSS_UNIT})[,|\\s]+(${CSS_UNIT})[,|\\s]+(${CSS_UNIT})[,|\\s]+(${CSS_UNIT})\\s*\\)?`;
+// eslint-disable-next-line prettier/prettier
+const PERMISSIVE_MATCH3 = '[\\s|\\(]+(' + CSS_UNIT + ')[,|\\s]+(' + CSS_UNIT + ')[,|\\s]+(' + CSS_UNIT + ')\\s*\\)?';
+const PERMISSIVE_MATCH4 =
+  // eslint-disable-next-line prettier/prettier
+  '[\\s|\\(]+(' + CSS_UNIT + ')[,|\\s]+(' + CSS_UNIT + ')[,|\\s]+(' + CSS_UNIT + ')[,|\\s]+(' + CSS_UNIT + ')\\s*\\)?';
 
 const matchers = {
   CSS_UNIT: new RegExp(CSS_UNIT),
@@ -101,6 +120,7 @@ const matchers = {
   hsla: new RegExp('hsla' + PERMISSIVE_MATCH4),
   hsv: new RegExp('hsv' + PERMISSIVE_MATCH3),
   hsva: new RegExp('hsva' + PERMISSIVE_MATCH4),
+  cmyk: new RegExp('cmyk' + PERMISSIVE_MATCH4),
   hex3: /^#?([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})$/,
   hex6: /^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/,
   hex4: /^#?([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})([0-9a-fA-F]{1})$/,
@@ -109,7 +129,7 @@ const matchers = {
 
 /**
  * Permissive string parsing.  Take in a number of formats, and output an object
- * based on detected format.  Returns `{ r, g, b }` or `{ h, s, l }` or `{ h, s, v}`
+ * based on detected format.  Returns `{ r, g, b }` or `{ h, s, l }` or `{ h, s, v}` or `{c, m, y, k}` or `{c, m, y, k, a}`
  */
 export function stringInputToObject(color: string): any {
   color = color.trim().toLowerCase();
@@ -157,6 +177,16 @@ export function stringInputToObject(color: string): any {
   match = matchers.hsva.exec(color);
   if (match) {
     return { h: match[1], s: match[2], v: match[3], a: match[4] };
+  }
+
+  match = matchers.cmyk.exec(color);
+  if (match) {
+    return {
+      c: match[1],
+      m: match[2],
+      y: match[3],
+      k: match[4],
+    };
   }
 
   match = matchers.hex8.exec(color);
@@ -209,5 +239,9 @@ export function stringInputToObject(color: string): any {
  * (see `matchers` above for definition).
  */
 export function isValidCSSUnit(color: string | number): boolean {
-  return Boolean(matchers.CSS_UNIT.exec(String(color)));
+  if (typeof color === 'number') {
+    return !Number.isNaN(color);
+  }
+
+  return matchers.CSS_UNIT.test(color);
 }

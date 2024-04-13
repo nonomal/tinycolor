@@ -1,8 +1,8 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it } from 'vitest';
 
-import { TinyColor } from '../src/public_api';
+import { TinyColor } from '../src/public_api.js';
 
-import conversions from './conversions';
+import conversions from './conversions.js';
 
 describe('TinyColor Conversions', () => {
   it('should have color equality', () => {
@@ -20,6 +20,7 @@ describe('TinyColor Conversions', () => {
       expect(new TinyColor(c.hex).equals(c.hsl)).toBe(true);
       expect(new TinyColor(c.hex).equals(c.hsv)).toBe(true);
       expect(new TinyColor(c.hsl).equals(c.hsv)).toBe(true);
+      expect(new TinyColor(c.cmyk).equals(c.hex)).toBe(true);
     }
   });
   it('HSL Object', () => {
